@@ -96,6 +96,11 @@ func downloadFiles(concurrency int, fileURLs []string, timeout time.Duration, de
 		if err != nil {
 			return err
 		}
+	} else {
+		err := os.MkdirAll(destDir, 0700)
+		if err != nil {
+			return err
+		}
 	}
 
 	var wg sync.WaitGroup
