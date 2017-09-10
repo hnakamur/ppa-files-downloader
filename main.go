@@ -43,7 +43,7 @@ func main() {
 }
 
 func getBuildURL(user, repo, pkg string) (*url.URL, error) {
-	packagesURL, err := url.Parse(fmt.Sprintf("https://launchpad.net/~%s/+archive/ubuntu/%s/+packages", user, repo))
+	packagesURL, err := url.Parse(fmt.Sprintf("https://launchpad.net/~%s/+archive/ubuntu/%s/+packages?nocache_dummy=%d", user, repo, time.Now().Unix()))
 	if err != nil {
 		return nil, err
 	}
