@@ -51,8 +51,12 @@ func getBuildURL(user, repo, pkg string) (*url.URL, error) {
 	if err != nil {
 		return nil, err
 	}
+	// Get latest build URL.
 	var buildURL *url.URL
 	doc.Find("a.expander").Each(func(i int, s *goquery.Selection) {
+		if buildURL != nil {
+			return
+		}
 		words := strings.Split(strings.TrimSpace(s.Text()), " - ")
 		if len(words) != 2 || words[0] != pkg {
 			return
