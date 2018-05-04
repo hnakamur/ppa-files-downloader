@@ -24,11 +24,12 @@ func main() {
 	user := flag.String("user", "", "user name")
 	repo := flag.String("repo", "", "repository name")
 	pkg := flag.String("pkg", "", "package name")
+	version := flag.String("version", "", "package version")
 	c := flag.Int("c", 6, "download concurrency")
 	timeout := flag.Duration("timeout", time.Minute, "http client timeout")
 	flag.Parse()
 
-	buildURL, err := getBuildURL(*user, *repo, *pkg)
+	buildURL, err := getBuildURL(*user, *repo, *pkg, *version)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -42,7 +43,7 @@ func main() {
 	}
 }
 
-func getBuildURL(user, repo, pkg string) (*url.URL, error) {
+func getBuildURL(user, repo, pkg, version string) (*url.URL, error) {
 	packagesURL, err := url.Parse(fmt.Sprintf("https://launchpad.net/~%s/+archive/ubuntu/%s/+packages?nocache_dummy=%d", user, repo, time.Now().Unix()))
 	if err != nil {
 		return nil, err
@@ -59,6 +60,9 @@ func getBuildURL(user, repo, pkg string) (*url.URL, error) {
 		}
 		words := strings.Split(strings.TrimSpace(s.Text()), " - ")
 		if len(words) != 2 || words[0] != pkg {
+			return
+		}
+		if version != "" && words[1] != version {
 			return
 		}
 		href, exists := s.Attr("href")
