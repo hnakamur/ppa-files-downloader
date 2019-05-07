@@ -17,8 +17,6 @@ import (
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
-	"github.com/vbauerster/mpb"
-	"github.com/vbauerster/mpb/decor"
 )
 
 func main() {
@@ -27,7 +25,7 @@ func main() {
 	repo := flag.String("repo", "", "repository name")
 	pkg := flag.String("pkg", "", "package name")
 	version := flag.String("version", "", "package version")
-	timeout := flag.Duration("timeout", time.Minute, "http client timeout")
+	timeout := flag.Duration("timeout", 5*time.Minute, "http client timeout")
 	flag.Parse()
 
 	buildURL, err := getBuildURL(*user, *repo, *pkg, *version)
@@ -113,8 +111,8 @@ func downloadFiles(fileURLs []string, timeout time.Duration, destDir string) err
 	}
 
 	var wg sync.WaitGroup
-	p := mpb.New(mpb.WithWaitGroup(&wg))
 
+	errC := make(chan error, len(fileURLs))
 	wg.Add(len(fileURLs))
 	for _, fileURL := range fileURLs {
 		fileURL := fileURL
@@ -124,37 +122,37 @@ func downloadFiles(fileURLs []string, timeout time.Duration, destDir string) err
 
 			client := http.Client{Timeout: timeout}
 			base := path.Base(fileURL)
+			fmt.Printf("downloading %s ...\n", base)
 			destFile := filepath.Join(destDir, base)
 			file, err := os.Create(destFile)
 			if err != nil {
-				log.Println(err)
+				errC <- fmt.Errorf("download error: file=%s, err=%s", base, err)
+				return
 			}
 			defer file.Close()
 
 			resp, err := client.Get(fileURL)
 			if err != nil {
-				log.Println(err)
+				errC <- fmt.Errorf("download error: file=%s, err=%s", base, err)
+				return
 			}
 			defer resp.Body.Close()
 
-			contentLength := resp.ContentLength
-
-			bar := p.AddBar(contentLength,
-				mpb.PrependDecorators(
-					decor.Name(base),
-				),
-				mpb.AppendDecorators(
-					decor.Percentage(decor.WCSyncSpace),
-				),
-			)
-
-			_, err = io.Copy(file, bar.ProxyReader(resp.Body))
+			_, err = io.Copy(file, resp.Body)
 			if err != nil {
-				log.Println(err)
+				errC <- fmt.Errorf("download error: file=%s, err=%s", base, err)
+				return
 			}
+			fmt.Printf("downloaded %s\n", base)
 		}()
 	}
-	p.Wait()
+	wg.Wait()
+
+	close(errC)
+	for err := range errC {
+		fmt.Println(err)
+	}
+
 	log.Printf("downloaded files to %s", destDir)
 	return nil
 }
